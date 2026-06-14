@@ -313,7 +313,7 @@ document.getElementById('quoteResult').style.display = 'none';
 document.getElementById('quoteError').style.display = 'none';
 document.getElementById('qPrice').textContent = '查詢中...';
 try {
-const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`;
+const url = `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`)}`;
 const r = await fetch(url);
 if(!r.ok) throw new Error('查無此股票');
 const d = await r.json();
@@ -399,7 +399,8 @@ let results = [];
 for(const item of a) {
 const tw = item.symbol.match(/^\d+$/) ? item.symbol+'.TW' : item.symbol;
 try {
-const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`);
+const alertUrl = `https://corsproxy.io/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`)}`;
+const r = await fetch(alertUrl);
 const d = await r.json();
 const price = d.chart.result[0].meta.regularMarketPrice;
 const triggered = item.condition==='below' ? price<=item.price : price>=item.price;
