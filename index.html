@@ -320,7 +320,7 @@ const d = await r.json();
 const meta = d.chart.result[0].meta;
 const q = d.chart.result[0].indicators.quote[0];
 const price = meta.regularMarketPrice;
-const prevClose = meta.previousClose;
+const prevClose = meta.chartPreviousClose;
 const change = price - prevClose;
 const pct = (change / prevClose * 100);
 const high = q.high ? q.high[q.high.length-1] : meta.regularMarketDayHigh || '—';
@@ -403,6 +403,7 @@ const alertUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https
 const r = await fetch(alertUrl);
 const d = await r.json();
 const price = d.chart.result[0].meta.regularMarketPrice;
+const prevClose = d.chart.result[0].meta.chartPreviousClose || 0;
 const triggered = item.condition==='below' ? price<=item.price : price>=item.price;
 results.push({ ...item, current: price, triggered });
 } catch { results.push({ ...item, current: '?', triggered: false }); }
