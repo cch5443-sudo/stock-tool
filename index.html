@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股小幫手</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI','Noto Sans TC',sans-serif}
+body{background:#0f172a;color:#e2e8f0;min-height:100vh;padding:20px}
+.container{max-width:900px;margin:0 auto}
+header{text-align:center;margin-bottom:30px}
+header h1{font-size:28px;color:#38bdf8;letter-spacing:1px}
+header p{color:#94a3b8;font-size:14px;margin-top:4px}
+.tabs{display:flex;gap:4px;margin-bottom:24px;flex-wrap:wrap}
+.tab{padding:10px 20px;background:#1e293b;border:none;color:#94a3b8;cursor:pointer;border-radius:8px 8px 0 0;font-size:14px;transition:.2s;flex:1;min-width:100px;text-align:center}
+.tab:hover{background:#334155;color:#e2e8f0}
+.tab.active{background:#0ea5e9;color:#fff;font-weight:600}
+.panel{display:none;background:#1e293b;border-radius:0 12px 12px 12px;padding:24px;min-height:400px}
+.panel.active{display:block}
+h2{font-size:18px;color:#f1f5f9;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #334155}
+label{display:block;font-size:13px;color:#94a3b8;margin:12px 0 4px}
+input,select{width:100%;padding:10px 14px;background:#0f172a;border:1px solid #334155;border-radius:6px;color:#e2e8f0;font-size:14px;outline:none}
+input:focus,select:focus{border-color:#0ea5e9}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.btn{background:#0ea5e9;color:#fff;border:none;padding:10px 24px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;margin-top:16px;transition:.2s;width:100%}
+.btn:hover{background:#0284c7}
+.btn.secondary{background:#334155}
+.btn.secondary:hover{background:#475569}
+.result-box{background:#0f172a;border-radius:8px;padding:16px;margin-top:16px}
+.result-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1e293b}
+.result-item:last-child{border:none}
+.result-item .label{color:#94a3b8}
+.result-item .value{color:#38bdf8;font-weight:600;font-size:16px}
+.chart-wrap{max-height:260px;margin-top:12px}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th{text-align:left;color:#94a3b8;padding:8px;border-bottom:1px solid #334155;font-weight:400}
+td{padding:8px;border-bottom:1px solid #1e293b}
+.price-up{color:#22c55e}
+.price-down{color:#ef4444}
+.alert-list{margin-top:12px}
+.alert-item{background:#0f172a;border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.alert-item .del-btn{background:#ef4444;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px}
+.tag{display:inline-block;background:#334155;color:#94a3b8;padding:2px 8px;border-radius:4px;font-size:11px;margin-right:4px}
+.loading{color:#94a3b8;text-align:center;padding:20px;font-size:14px}
+.error{color:#ef4444;text-align:center;padding:10px;font-size:13px}
+.stock-card{background:#0f172a;border-radius:8px;padding:16px;margin-top:12px}
+.stock-card .price{font-size:32px;font-weight:700;color:#38bdf8}
+.stock-card .change{font-size:14px;margin-left:8px}
+.stock-card .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.stock-card .detail-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b;font-size:13px}
+#alertStatus{color:#22c55e;font-size:13px;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>📈 台股小幫手</h1>
+<p>定期定額試算 · ETF比較 · 股票查價 · 價位提醒</p>
+</header>
+
+<div class="tabs">
+<button class="tab active" onclick="switchTab('calculator')">💰 定期定額</button>
+<button class="tab" onclick="switchTab('etf')">📊 ETF比較</button>
+<button class="tab" onclick="switchTab('quote')">🔍 股票查詢</button>
+<button class="tab" onclick="switchTab('alert')">🔔 價位提醒</button>
+</div>
+
+<!-- Panel 1: 定期定額 -->
+<div id="panel-calculator" class="panel active">
+<h2>定期定額試算</h2>
+<div class="row">
+<div>
+<label>每月投入金額 (元)</label>
+<input type="number" id="monthlyAmount" value="5000" min="1000" step="1000">
+</div>
+<div>
+<label>預估年化報酬率 (%)</label>
+<input type="number" id="annualReturn" value="8" min="1" max="30" step="0.5">
+</div>
+</div>
+<div class="row">
+<div>
+<label>投資年限</label>
+<select id="years">
+<option value="1">1 年</option>
+<option value="3">3 年</option>
+<option value="5" selected>5 年</option>
+<option value="10">10 年</option>
+<option value="15">15 年</option>
+<option value="20">20 年</option>
+<option value="30">30 年</option>
+</select>
+</div>
+<div>
+<label>&nbsp;</label>
+<button class="btn" onclick="calcRegular()">開始試算</button>
+</div>
+</div>
+<div id="calcResult" class="result-box" style="display:none">
+<div class="result-item"><span class="label">總投入金額</span><span class="value" id="totalInvested">0</span></div>
+<div class="result-item"><span class="label">最終總資產</span><span class="value" id="finalValue">0</span></div>
+<div class="result-item"><span class="label">總獲利</span><span class="value" id="totalProfit">0</span></div>
+<div class="chart-wrap"><canvas id="calcChart"></canvas></div>
+</div>
+</div>
+
+<!-- Panel 2: ETF比較 -->
+<div id="panel-etf" class="panel">
+<h2>台股 ETF 比較</h2>
+<p style="color:#94a3b8;font-size:13px;margin-bottom:12px">歷史年化報酬率（近5年，含配息）</p>
+<table>
+<thead><tr><th>ETF</th><th>追蹤指數</th><th>年化報酬</th><th>管理費</th><th>成分股</th><th>適合</th></tr></thead>
+<tbody>
+<tr><td><strong>0050</strong></td><td>台灣50</td><td class="price-up">~13%</td><td>0.43%</td><td>前50大</td><td>追求成長</td></tr>
+<tr><td><strong>0056</strong></td><td>高股息</td><td class="price-up">~10%</td><td>0.56%</td><td>高息50檔</td><td>領股息</td></tr>
+<tr><td><strong>006208</strong></td><td>台灣50</td><td class="price-up">~13%</td><td>0.25%</td><td>前50大</td><td>費用最低</td></tr>
+<tr><td><strong>00878</strong></td><td>ESG高息</td><td class="price-up">~11%</td><td>0.50%</td><td>ESG+高息</td><td>ESG+配息</td></tr>
+</tbody>
+</table>
+<div class="row" style="margin-top:16px">
+<div>
+<label>每月投入金額 (元)</label>
+<input type="number" id="etfMonthly" value="5000" min="1000" step="1000">
+</div>
+<div>
+<label>投資年限</label>
+<select id="etfYears">
+<option value="5">5 年</option>
+<option value="10" selected>10 年</option>
+<option value="20">20 年</option>
+</select>
+</div>
+</div>
+<button class="btn" onclick="compareETF()">比較試算</button>
+<div id="etfResult" class="result-box" style="display:none">
+<div class="row" style="gap:12px">
+<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">
+<div style="color:#94a3b8;font-size:12px">0050 / 006208 最終資產</div>
+<div id="etf50" style="font-size:24px;font-weight:700;color:#38bdf8">0</div>
+</div>
+<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center">
+<div style="color:#94a3b8;font-size:12px">0056 最終資產</div>
+<div id="etf56" style="font-size:24px;font-weight:700;color:#22c55e">0</div>
+</div>
+</div>
+<div class="chart-wrap"><canvas id="etfChart"></canvas></div>
+</div>
+</div>
+
+<!-- Panel 3: 股票查詢 -->
+<div id="panel-quote" class="panel">
+<h2>股票即時查詢</h2>
+<div class="row">
+<div>
+<label>股票代號 (台股)</label>
+<input type="text" id="stockSymbol" value="2330" placeholder="例如 2330、台積電">
+</div>
+<div>
+<label>&nbsp;</label>
+<button class="btn" onclick="queryStock()">查詢</button>
+</div>
+</div>
+<div id="quoteResult" class="stock-card" style="display:none">
+<div class="price" id="qPrice">—</div>
+<div>
+<span id="qChange" class="change">—</span>
+<span id="qChangePct" style="font-size:13px;color:#94a3b8">—</span>
+</div>
+<div class="detail-grid" id="qDetails"></div>
+</div>
+<div id="quoteError" class="error" style="display:none"></div>
+</div>
+
+<!-- Panel 4: 價位提醒 -->
+<div id="panel-alert" class="panel">
+<h2>價位提醒設定</h2>
+<div class="row">
+<div>
+<label>股票代號</label>
+<input type="text" id="alertSymbol" value="2330" placeholder="2330">
+</div>
+<div>
+<label>提醒條件</label>
+<select id="alertCondition">
+<option value="below">跌到以下</option>
+<option value="above">漲到以上</option>
+</select>
+</div>
+</div>
+<div class="row">
+<div>
+<label>目標價位</label>
+<input type="number" id="alertPrice" value="850" step="5">
+</div>
+<div>
+<label>&nbsp;</label>
+<button class="btn" onclick="addAlert()">新增提醒</button>
+</div>
+</div>
+<div id="alertStatus"></div>
+<div class="alert-list" id="alertList"></div>
+<button class="btn secondary" onclick="checkAllAlerts()" style="margin-top:8px">🔍 現在檢查所有提醒</button>
+</div>
+
+</div>
+
+<script>
+let calcChart = null, etfChart = null;
+
+function switchTab(name) {
+document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+document.querySelector(`.tab[onclick*='${name}']`).classList.add('active');
+document.getElementById('panel-'+name).classList.add('active');
+}
+
+// === 定期定額 ===
+function calcRegular() {
+const monthly = parseFloat(document.getElementById('monthlyAmount').value) || 5000;
+const rate = parseFloat(document.getElementById('annualReturn').value) / 100;
+const years = parseInt(document.getElementById('years').value);
+const months = years * 12;
+const monthlyRate = rate / 12;
+let total = 0;
+const data = [];
+for(let m = 1; m <= months; m++) {
+total = (total + monthly) * (1 + monthlyRate);
+if(m % 12 === 0) data.push(total);
+}
+const invested = monthly * months;
+const profit = total - invested;
+document.getElementById('totalInvested').textContent = invested.toLocaleString() + ' 元';
+document.getElementById('finalValue').textContent = Math.round(total).toLocaleString() + ' 元';
+document.getElementById('totalProfit').textContent = Math.round(profit).toLocaleString() + ' 元';
+document.getElementById('calcResult').style.display = 'block';
+
+const labels = data.map((_,i)=>`第${i+1}年`);
+if(calcChart) calcChart.destroy();
+calcChart = new Chart(document.getElementById('calcChart'), {
+type: 'line',
+data: {
+labels,
+datasets: [{
+label: '總資產',
+data: data.map(v=>Math.round(v)),
+borderColor: '#38bdf8',
+backgroundColor: 'rgba(56,189,248,0.1)',
+fill: true,
+tension: 0.3
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: { legend: { labels: { color:'#94a3b8' } } },
+scales: {
+x: { ticks: { color:'#94a3b8' }, grid: { color:'#1e293b' } },
+y: { ticks: { color:'#94a3b8', callback:v=>v.toLocaleString() }, grid: { color:'#1e293b' } }
+}
+}
+});
+}
+
+// === ETF比較 ===
+function compareETF() {
+const monthly = parseFloat(document.getElementById('etfMonthly').value) || 5000;
+const years = parseInt(document.getElementById('etfYears').value);
+const months = years * 12;
+const rates = { '0050': 0.13, '0056': 0.10 };
+const labels = [];
+for(let y=1; y<=years; y++) labels.push(`第${y}年`);
+const calc = (r) => {
+let t=0; const d=[];
+for(let m=1; m<=months; m++) {
+t = (t + monthly) * (1 + r/12);
+if(m%12===0) d.push(t);
+}
+return d;
+};
+const d50 = calc(0.13);
+const d56 = calc(0.10);
+document.getElementById('etf50').textContent = Math.round(d50[d50.length-1]).toLocaleString() + ' 元';
+document.getElementById('etf56').textContent = Math.round(d56[d56.length-1]).toLocaleString() + ' 元';
+document.getElementById('etfResult').style.display = 'block';
+if(etfChart) etfChart.destroy();
+etfChart = new Chart(document.getElementById('etfChart'), {
+type: 'line',
+data: {
+labels,
+datasets: [
+{ label: '0050 / 006208 (年化13%)', data: d50.map(v=>Math.round(v)), borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.05)', fill:true, tension:0.3 },
+{ label: '0056 (年化10%)', data: d56.map(v=>Math.round(v)), borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.05)', fill:true, tension:0.3 }
+]
+},
+options: {
+responsive:true, maintainAspectRatio:false,
+plugins:{ legend:{ labels:{ color:'#94a3b8' } } },
+scales:{
+x:{ ticks:{ color:'#94a3b8' }, grid:{ color:'#1e293b' } },
+y:{ ticks:{ color:'#94a3b8', callback:v=>v.toLocaleString() }, grid:{ color:'#1e293b' } }
+}
+}
+});
+}
+
+// === 股票查詢 ===
+async function queryStock() {
+const symbol = document.getElementById('stockSymbol').value.trim();
+if(!symbol) { showQuoteError('請輸入股票代號'); return; }
+const tw = symbol.match(/^\d+$/) ? symbol+'.TW' : symbol;
+document.getElementById('quoteResult').style.display = 'none';
+document.getElementById('quoteError').style.display = 'none';
+document.getElementById('qPrice').textContent = '查詢中...';
+try {
+const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`;
+const r = await fetch(url);
+if(!r.ok) throw new Error('查無此股票');
+const d = await r.json();
+const meta = d.chart.result[0].meta;
+const q = d.chart.result[0].indicators.quote[0];
+const price = meta.regularMarketPrice;
+const prevClose = meta.previousClose;
+const change = price - prevClose;
+const pct = (change / prevClose * 100);
+const high = q.high ? q.high[q.high.length-1] : meta.regularMarketDayHigh || '—';
+const low = q.low ? q.low[q.low.length-1] : meta.regularMarketDayLow || '—';
+const vol = q.volume ? q.volume[q.volume.length-1] : '—';
+document.getElementById('qPrice').textContent = '$' + price.toFixed(2);
+const chgEl = document.getElementById('qChange');
+chgEl.textContent = (change>=0?'+':'') + change.toFixed(2);
+chgEl.className = 'change ' + (change>=0?'price-up':'price-down');
+document.getElementById('qChangePct').textContent = '(' + (pct>=0?'+':'') + pct.toFixed(2) + '%)';
+document.getElementById('qDetails').innerHTML =
+`<div class="detail-item"><span>昨收</span><span>$${prevClose.toFixed(2)}</span></div>
+<div class="detail-item"><span>今日最高</span><span>${high!=='—'?'$'+high.toFixed(2):'—'}</span></div>
+<div class="detail-item"><span>今日最低</span><span>${low!=='—'?'$'+low.toFixed(2):'—'}</span></div>
+<div class="detail-item"><span>成交量</span><span>${vol!=='—'?Number(vol).toLocaleString():'—'}</span></div>
+<div class="detail-item"><span>代號</span><span>${symbol}</span></div>`;
+document.getElementById('quoteResult').style.display = 'block';
+} catch(e) {
+showQuoteError('查詢失敗：' + e.message);
+}
+}
+function showQuoteError(msg) {
+const el = document.getElementById('quoteError');
+el.textContent = msg;
+el.style.display = 'block';
+}
+
+// === 價位提醒 ===
+function getAlerts() {
+try { return JSON.parse(localStorage.getItem('stockAlerts') || '[]'); } catch{return [];}
+}
+function saveAlerts(a) { localStorage.setItem('stockAlerts', JSON.stringify(a)); }
+
+function renderAlerts() {
+const a = getAlerts();
+const el = document.getElementById('alertList');
+if(!a.length) { el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:16px">還沒有提醒，新增一個吧</div>'; return; }
+el.innerHTML = a.map((item,i)=>`
+<div class="alert-item">
+<div>
+<span class="tag">${item.symbol}</span>
+${item.condition==='below'?'📉 跌到':'📈 漲到'} <strong>$${item.price}</strong>
+</div>
+<button class="del-btn" onclick="removeAlert(${i})">✕</button>
+</div>
+`).join('');
+}
+
+function addAlert() {
+const symbol = document.getElementById('alertSymbol').value.trim();
+const condition = document.getElementById('alertCondition').value;
+const price = parseFloat(document.getElementById('alertPrice').value);
+if(!symbol || !price) { document.getElementById('alertStatus').textContent = '⚠️ 請填完整'; return; }
+const a = getAlerts();
+a.push({symbol, condition, price, id:Date.now()});
+saveAlerts(a);
+renderAlerts();
+document.getElementById('alertStatus').textContent = `✅ ${symbol} ${condition==='below'?'跌到':'漲到'} $${price} 已加入提醒`;
+document.getElementById('alertSymbol').value = '';
+document.getElementById('alertPrice').value = '';
+}
+
+function removeAlert(i) {
+const a = getAlerts();
+a.splice(i,1);
+saveAlerts(a);
+renderAlerts();
+document.getElementById('alertStatus').textContent = '已移除提醒';
+}
+
+async function checkAllAlerts() {
+const a = getAlerts();
+if(!a.length) { document.getElementById('alertStatus').textContent = '沒有提醒需要檢查'; return; }
+document.getElementById('alertStatus').textContent = '🔍 檢查中...';
+let results = [];
+for(const item of a) {
+const tw = item.symbol.match(/^\d+$/) ? item.symbol+'.TW' : item.symbol;
+try {
+const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${tw}?range=1d&interval=1d`);
+const d = await r.json();
+const price = d.chart.result[0].meta.regularMarketPrice;
+const triggered = item.condition==='below' ? price<=item.price : price>=item.price;
+results.push({ ...item, current: price, triggered });
+} catch { results.push({ ...item, current: '?', triggered: false }); }
+}
+let msg = results.map(r=>`${r.symbol} 現價 $${r.current} ${r.triggered?'🚨 觸發了！':'✅ 未觸發'}`).join('\n');
+document.getElementById('alertStatus').textContent = msg.replace(/\n/g, ' | ');
+}
+
+// 初始化
+renderAlerts();
+calcRegular();
+</script>
+</body>
+</html>
